@@ -2,12 +2,18 @@ package com.company;
 
 import java.io.*;
 import java.lang.String;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 
 public class Main {
 
     private static Scanner sc = new Scanner(System.in);
-    private static Vector<String> wishlist = new Vector();
+    private static Vector<String> currentWishlist = new Vector();
+    private static String currentWishlistName = "wishlist";
+    private static HashMap<String, Vector<String>> wishlistMap = new HashMap();
 
     public static void main(String[] args) {
 
@@ -15,14 +21,19 @@ public class Main {
 
         while (true)
         {
-            System.out.println("Enter your command");
-            String input = sc.next();
+            System.out.print("\nEnter your command: (currently using " + currentWishlistName + ") ");
 
+            String input = sc.next();
             char cmd = input.charAt(0);
 
-            switch (cmd)
+            System.out.println();
+
+            switch (cmd) //TODO function cmd map?
             {
                 case 'q':
+                    break;
+                case 'c':
+                    choose();
                     break;
                 case 's':
                     save();
@@ -34,36 +45,91 @@ public class Main {
                     add();
                     break;
                 case 'd':
+                    delete();
                     break;
                 default:
-                    break; //TODO throw er
+                    System.out.println("Unrecognized command!\n");
+                    break;
             }
 
-            if (cmd == 'q') return;
+            if (cmd == 'q')
+            {
+                System.out.print("Done.");
+                return;
+            }
         }
     }
 
     private static void load() {
 
-        try {
-            InputStream is = new FileInputStream("wishlist.txt");
-            BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-
-            String line = reader.readLine();
-            //StringBuilder sb = new StringBuilder();
-
-            while(line != null)
+        //Load all txt files in src/lists
+        try (DirectoryStream<Path> files = Files.newDirectoryStream(Paths.get("src/lists"))) {
+            for (Path path : files)
             {
-                wishlist.add(line);
-                line = reader.readLine();
-            }
+                try {
+                    //System.out.println(path.toString());
 
+                    currentWishlistName = path.toString().substring(10);
+                    currentWishlistName = currentWishlistName.substring(0, currentWishlistName.length()-4);
+
+                    //System.out.print(currentWishlistName);
+
+                    InputStream is = new FileInputStream("src/lists/" + currentWishlistName + ".txt");
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+
+                    String line = reader.readLine();
+                    //StringBuilder sb = new StringBuilder();
+
+                    while (line != null)
+                    {
+                        currentWishlist.add(line);
+                        line = reader.readLine();
+                    }
+
+                    System.out.println(currentWishlistName + " loaded.");
+                    wishlistMap.put(currentWishlistName, currentWishlist);
+                    currentWishlist = new Vector();
+
+                } catch (FileNotFoundException e) {
+                    System.out.println("File not found!\n");
+                } catch (IOException e) {
+                    System.out.println("IO exception!\n");
+                }
+            }
+        } catch (IOException e) {
+            System.out.println("IO exception!\n");
         }
-        catch(FileNotFoundException e) {
-            //Err
-        }
-        catch(IOException e) {
-            //Err
+    }
+
+    private static void choose() {
+
+        System.out.print("Enter the name of the wishlist you want to use: ");
+
+        String input = sc.next();
+        if (wishlistMap.containsKey(input))
+        {
+            save();
+            currentWishlistName = input;
+            currentWishlist = wishlistMap.get(input); //TODO s2x
+
+            System.out.println("Loaded " + currentWishlistName + ".");        }
+        else
+        {
+            System.out.print("Wishlist not found, create a new list? (y/n): ");
+
+            String secondInput = sc.next();
+            System.out.println();
+
+            if (secondInput.equals("y") || secondInput.equals("yes"))
+            {
+                save();
+                currentWishlistName = input;
+                currentWishlist = new Vector();
+                wishlistMap.put(input, currentWishlist);
+
+                System.out.println("Wishlist created.\n");
+            }
+            else System.out.println("Nothing selected.");
         }
     }
 
@@ -71,35 +137,47 @@ public class Main {
 
         //TODO file locks?
 
-        try {
-            BufferedWriter writer = new BufferedWriter(new FileWriter("wishlist.txt"));
+        System.out.println("Saving " + currentWishlistName + ".");
 
-            for (int i = 0; i < wishlist.size(); ++i) {
-                writer.write(wishlist.elementAt(i));
+        try {
+            BufferedWriter writer = new BufferedWriter(new FileWriter("src/lists/" + currentWishlistName + ".txt"));
+
+            for (int i = 0; i < currentWishlist.size(); ++i)
+            {
+                writer.write(currentWishlist.elementAt(i));
                 writer.newLine();
             }
 
             writer.close();
-        }
-        catch (IOException e) {
-            //Err
+
+        } catch (IOException e) {
+            System.out.println("IO exception!\n");
         }
     }
 
     private static void view() {
 
-        for (int i = 0; i < wishlist.size(); ++i)
+        System.out.println("Viewing " + currentWishlistName + ": ");
+
+        for (int i = 0; i < currentWishlist.size(); ++i)
         {
-            System.out.println(wishlist.elementAt(i));
+            System.out.println(currentWishlist.elementAt(i));
         }
     }
 
     private static void add() {
 
-        System.out.println("Enter your item");
+        System.out.print("Enter your item: ");
         String input = sc.next();
 
-        wishlist.add(input);
+        currentWishlist.add(input);
+
+        System.out.println(input + " added.");
+    }
+
+    private static void delete() { //TODO only clears current wishlist, nothing on disk
+
+        System.out.println("Deleting " + currentWishlistName + ".");
+        currentWishlist.clear();
     }
 }
-
